@@ -77,6 +77,15 @@
             border: 1px solid var(--border);
             margin-bottom: 1rem;
         }
+        .form {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 1rem;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
 
         /* Header */
         header {
@@ -680,13 +689,14 @@
         .checkbox-container {
             display: flex;
             align-items: center;
+            justify-content: flex-start;
             gap: 0.5rem;
-            margin: 0.75rem 0;
-            cursor: pointer;
+            margin-top: 0.5rem;
         }
 
         .checkbox-container input[type="checkbox"] {
-            width: auto;
-            margin: 0;
+            width: 16px;
+            height: 16px;
         }
+        
         

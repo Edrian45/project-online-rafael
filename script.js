@@ -233,7 +233,29 @@ function initAuth() {
             renderApp();
         }
     });
-
+    //forgot pin
+    document.getElementById('btn-forgot-pin').addEventListener('click', () => {
+        const email = prompt("Please enter your registered email to reset your PIN / Password:");
+        if (!email) {
+            showAlert('Email is required to reset PIN / Password', 'error');
+            return;
+        }
+        const users = getUsers();
+        const userIndex = users.findIndex(u => u.email === email.trim().toLowerCase());
+        if (userIndex === -1) {
+            showAlert('Email not found', 'error');
+            return;
+        }
+        const newPin = prompt("Enter your new PIN / Password (4-12 digits):");
+        if (!isValidPin(newPin)) {
+            showAlert('PIN must be 4-12 digits', 'error');
+            return;
+        }
+        users[userIndex].pin = newPin;
+        if (saveUsers(users)) {
+            showAlert('PIN has been reset successfully. You may now login with your new PIN / Password.', 'success');
+        }
+    });
     // Logout with confirmation
     document.getElementById('btn-logout').addEventListener('click', () => {
         const confirmLogout = confirm("Are you sure you want to logout?");
@@ -1115,3 +1137,4 @@ function initApp() {
 
 // Start the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
+

@@ -609,7 +609,9 @@ function renderTransactions(transactions) {
     // Render transactions by date
     container.innerHTML = '';
     dates.forEach(date => {
-        const dateTransactions = byDate[date].sort((a, b) => a.time.localeCompare(b.time));
+        // Sort newest first (LIFO)
+        const dateTransactions = byDate[date].sort((a, b) => b.time.localeCompare(a.time));
+
 
         // Calculate totals for ALL transactions of this date (not filtered by view type)
         const allTransactions = getTx(); // Get all transactions
@@ -1136,5 +1138,6 @@ function initApp() {
 
 // Start the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
+
 
 

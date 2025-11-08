@@ -43,7 +43,7 @@ function showAlert(message, type = 'info', duration = 5000) {
     alert.className = `alert alert-${type}`;
     alert.textContent = message;
     alert.style.position = 'fixed';
-    alert.style.top = '10px';
+    alert.style.bottom = '0px';
     alert.style.left = '50%';
     alert.style.transform = 'translateX(-50%)';
     alert.style.zIndex = '9999';
@@ -229,6 +229,7 @@ function initAuth() {
 
         const session = { email: u.email, name: u.name, loginAt: nowTimestamp() };
         if (setSession(session)) {
+            showAlert('You have been logged in', 'success');
             renderApp();
         }
     });
@@ -247,7 +248,59 @@ function initAuth() {
     });
 
 }
+function initProfileEditor() {
+    const btnEditProfile = document.getElementById('btn-edit-profile');
+    const modal = document.getElementById('profile-modal');
+    const closeModal = document.getElementById('close-profile-modal');
+    const cancelBtn = document.getElementById('cancel-profile');
+    const saveBtn = document.getElementById('save-profile');
 
+    btnEditProfile.addEventListener('click', () => {
+        const session = getSession();
+        document.getElementById('edit-name').value = session.name;
+        document.getElementById('edit-pin').value = "";
+        modal.classList.add('active');
+    });
+
+    function closeProfileModal() {
+        modal.classList.remove('active');
+    }
+
+    closeModal.addEventListener('click', closeProfileModal);
+    cancelBtn.addEventListener('click', closeProfileModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeProfileModal(); });
+
+    saveBtn.addEventListener('click', () => {
+        const newName = document.getElementById('edit-name').value.trim();
+        const newPin = document.getElementById('edit-pin').value;
+
+        let users = getUsers();
+        let session = getSession();
+
+        // Update user record
+        const userIndex = users.findIndex(u => u.email === session.email);
+        if (userIndex !== -1) {
+            users[userIndex].name = newName;
+            if (newPin !== "") {
+                if (!isValidPin(newPin)) {
+                    showAlert('PIN must be 4–12 digits', 'error');
+                    return;
+                }
+                users[userIndex].pin = newPin;
+            }
+            saveUsers(users);
+
+            // Update session so UI updates immediately
+            session.name = newName;
+            setSession(session);
+
+            renderApp();
+            showAlert('Profile updated successfully!', 'success');
+        }
+
+        closeProfileModal();
+    });
+}
 // ----------------- Transaction Management -----------------
 function initTransactions() {
     const btnAddTrans = document.getElementById('btn-add-trans');
@@ -394,7 +447,6 @@ function initFilters() {
     const btnApplyFilter = document.getElementById('btn-apply-filter');
     const btnClearFilter = document.getElementById('btn-clear-filter');
     const viewType = document.getElementById('view-type');
-    const reportType = document.getElementById('report-type');
     const searchInput = document.getElementById('search');
 
     // Set default date range to current month
@@ -415,7 +467,6 @@ function initFilters() {
 
     // Update on filter changes
     viewType.addEventListener('change', loadAndRender);
-    reportType.addEventListener('change', loadAndRender);
     searchInput.addEventListener('input', debounce(loadAndRender, 300));
 }
 
@@ -474,6 +525,7 @@ function loadAndRender() {
 
     // Render savings history
     renderHistory(txs);
+    updateWeeklySavingsChart();
 }
 
 function updateStatistics(transactions) {
@@ -702,14 +754,11 @@ function renderHistory(allTransactions) {
     html += '</tbody></table>';
     container.innerHTML = html;
 }
-
 // ----------------- Print and Export -----------------
 function initPrintExport() {
     const btnPrint = document.getElementById('btn-print');
-    const btnExport = document.getElementById('btn-export');
 
     btnPrint.addEventListener('click', showPrintOptions);
-    btnExport.addEventListener('click', exportData);
 }
 
 function showPrintOptions() {
@@ -907,6 +956,100 @@ function printReport(reportType = null) {
     w.document.close();
     w.print();
 }
+// ----------------- Weekly Savings Chart -----------------
+let weeklySavingsChart;
+
+function initWeeklySavingsChart() {
+    const ctx = document.getElementById('weeklySavingsChart');
+
+    weeklySavingsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+            datasets: [{
+                label: "Daily Savings (₱)",
+                data: getWeeklySavings(), // We will update this function next
+                borderWidth: 3,
+                pointRadius: 6,
+                tension: 0.4,
+                borderColor: "#4CAF50",
+                pointBackgroundColor: "#4CAF50"
+            },
+            {
+                // GOAL LINE
+                label: "Weekly Goal",
+                data: Array(7).fill(100), // Example goal = ₱100 per day
+                borderWidth: 2,
+                borderDash: [5, 5],
+                tension: 0.3,
+                borderColor: "#FF9800",
+                pointRadius: 0
+            }]
+        },
+
+        options: {
+            responsive: true,
+            plugins: {
+                tooltip: { enabled: true },
+                legend: { position: "bottom" }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: "Amount (₱)" }
+                },
+                x: { title: { display: true, text: "Day" } }
+            }
+        }
+    });
+}
+function getCurrentWeekRange() {
+    const now = new Date();
+    const day = now.getDay(); // 0 = Sunday
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust so week starts Monday
+    const monday = new Date(now.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    return { monday, sunday };
+}
+
+
+function updateWeeklySavingsChart() {
+    if (!weeklySavingsChart) return;
+
+    weeklySavingsChart.data.datasets[0].data = getWeeklySavings();
+    weeklySavingsChart.update();
+}
+
+function getWeeklySavings() {
+    const { monday, sunday } = getCurrentWeekRange();
+    const tx = getTx(); // all transactions
+
+    // Initialize savings per day
+    let savingsMap = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+
+    tx.forEach(t => {
+        const date = new Date(t.date);
+        if (date >= monday && date <= sunday) {
+            const day = date.toLocaleString("en-US", { weekday: "short" });
+            savingsMap[day] += (t.type === "inflow" ? t.amount : -t.amount);
+        }
+    });
+
+    return [
+        savingsMap.Mon,
+        savingsMap.Tue,
+        savingsMap.Wed,
+        savingsMap.Thu,
+        savingsMap.Fri,
+        savingsMap.Sat,
+        savingsMap.Sun
+    ];
+}
 
 function exportData() {
     const txs = getTx();
@@ -948,10 +1091,9 @@ function renderApp() {
 
     document.getElementById('u-email').textContent = session.email;
     document.getElementById('u-name').textContent = session.name || '';
-
+    initProfileEditor();
     loadAndRender();
 }
-
 function initApp() {
     // Create demo user if no users exist
     const users = getUsers();
@@ -965,7 +1107,8 @@ function initApp() {
     initTransactions();
     initFilters();
     initPrintExport();
-
+    initWeeklySavingsChart();
+    updateWeeklySavingsChart();
     // Render the app based on current session
     renderApp();
 }

@@ -1020,7 +1020,6 @@ function initWeeklySavingsChart() {
                     beginAtZero: true,
                     title: { display: true, text: "Amount (₱)" }
                 },
-                x: { title: { display: true, text: "Day" } }
             }
         }
     });
@@ -1137,4 +1136,5 @@ function initApp() {
 
 // Start the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
+
 

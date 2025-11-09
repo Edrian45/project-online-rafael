@@ -63,6 +63,10 @@ function showAlert(message, type = 'info', duration = 5000) {
 
     return alert;
 }
+// ----------------- Alert page info -----------------
+function showAlertMessage(message, type = 'info') {
+    showAlert(message, type);
+}
 
 // ----------------- Storage Functions -----------------
 function load(key) {
@@ -230,7 +234,12 @@ function initAuth() {
 
         const session = { email: u.email, name: u.name, loginAt: nowTimestamp() };
         if (setSession(session)) {
-            showAlert('You have been logged in', 'success');
+            showAlert(`Welcome back, ${u.name}!`, 'success');
+
+            setTimeout(() => {
+                showAlert('If something went wrong, please refresh the page.', 'info');
+            }, 5000); // wait 5 seconds so they appear stacked nicely
+
             renderApp();
         }
     });
@@ -1185,3 +1194,4 @@ function initApp() {
 
 // Start the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
+

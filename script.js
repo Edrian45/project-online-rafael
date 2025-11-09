@@ -1043,29 +1043,32 @@ function printReport(reportType = null) {
     w.document.close();
     w.print();
 }
-// ----------------- Weekly Savings Chart -----------------
-let weeklySavingsChart;
+// ----------------- Monthly Savings Chart -----------------
+let monthlySavingsChart;
 
-function initWeeklySavingsChart() {
+function initMonthlySavingsChart() {
     const ctx = document.getElementById('weeklySavingsChart');
+    if (!ctx) return;
 
-    weeklySavingsChart = new Chart(ctx, {
+    const { labels, data } = getMonthlySavings();
+
+    monthlySavingsChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+            labels: labels,
             datasets: [{
                 label: "Daily Savings (₱)",
-                data: getWeeklySavings(), // We will update this function next
+                data: data,
                 borderWidth: 3,
-                pointRadius: 6,
+                pointRadius: 4,
                 tension: 0.4,
                 borderColor: "#4CAF50",
                 pointBackgroundColor: "#4CAF50"
             },
             {
                 // GOAL LINE
-                label: "Weekly Goal",
-                data: Array(7).fill(100), // Example goal = ₱100 per day
+                label: "Daily Goal",
+                data: Array(12).fill(100), // Example goal = ₱100 per day
                 borderWidth: 2,
                 borderDash: [5, 5],
                 tension: 0.3,
@@ -1073,7 +1076,6 @@ function initWeeklySavingsChart() {
                 pointRadius: 0
             }]
         },
-
         options: {
             responsive: true,
             plugins: {
@@ -1090,75 +1092,32 @@ function initWeeklySavingsChart() {
     });
 }
 
-function getCurrentWeekRange() {
-    const now = new Date();
-    const day = now.getDay(); // 0 = Sunday
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust so week starts Monday
-    const monday = new Date(now.setDate(diff));
-    monday.setHours(0, 0, 0, 0);
+function updateMonthlySavingsChart() {
+    if (!monthlySavingsChart) return;
 
-    const sunday = new Date(monday);
-    sunday.setDate(sunday.getDate() + 6);
-    sunday.setHours(23, 59, 59, 999);
-
-    return { monday, sunday };
+    const { labels, data } = getMonthlySavings();
+    monthlySavingsChart.data.labels = labels;
+    monthlySavingsChart.data.datasets[0].data = data;
+    monthlySavingsChart.update();
 }
 
-function updateWeeklySavingsChart() {
-    if (!weeklySavingsChart) return;
-
-    weeklySavingsChart.data.datasets[0].data = getWeeklySavings();
-    weeklySavingsChart.update();
-}
-
-function getWeeklySavings() {
-    const { monday, sunday } = getCurrentWeekRange();
+function getMonthlySavings() {
+    const currentYear = new Date().getFullYear();
     const tx = getTx(); // all transactions
 
-    // Group transactions by date within the week
-    const byDate = {};
+    // Initialize savings array for each month of the year
+    const savingsData = Array(12).fill(0);
+    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
     tx.forEach(t => {
-        const date = new Date(t.date);
-        if (date >= monday && date <= sunday) {
-            const dateString = t.date; // Use the original date string format
-            if (!byDate[dateString]) byDate[dateString] = { inflow: 0, outflow: 0 };
-            if (t.type === "inflow") byDate[dateString].inflow += t.amount;
-            else byDate[dateString].outflow += t.amount;
+        const date = parseDate(t.date);
+        if (date && date.getFullYear() === currentYear) {
+            const monthIndex = date.getMonth(); // 0-11
+            savingsData[monthIndex] += (t.type === "inflow" ? t.amount : -t.amount);
         }
     });
 
-    // Get all dates within the week range
-    const weekDates = [];
-    const currentDate = new Date(monday);
-    while (currentDate <= sunday) {
-        const dateString = formatDateForDisplay(currentDate);
-        weekDates.push(dateString);
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    // Calculate cumulative savings in date order
-    let cumulativeSavings = 0;
-    const dailySavings = Array(7).fill(0); // Initialize with zeros
-
-    weekDates.forEach((dateString, index) => {
-        if (byDate[dateString]) {
-            const data = byDate[dateString];
-            const dailyNet = data.inflow - data.outflow;
-            cumulativeSavings += dailyNet;
-        }
-        // Even if no transactions, keep the cumulative savings
-        dailySavings[index] = cumulativeSavings;
-    });
-
-    return dailySavings;
-}
-
-// Helper function to format date as YY/MM/DD (adjust based on your date format)
-function formatDateForDisplay(date) {
-    const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    return `${month}/${day}/${year}`; // Adjust this format to match your transaction date format
+    return { labels, data: savingsData };
 }
 
 function exportData() {
@@ -1217,14 +1176,15 @@ function initApp() {
     initTransactions();
     initFilters();
     initPrintExport();
-    initWeeklySavingsChart();
-    updateWeeklySavingsChart();
+    initMonthlySavingsChart();
+    updateMonthlySavingsChart();
     // Render the app based on current session
     renderApp();
 }
 
 // Start the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
+
 
 
 

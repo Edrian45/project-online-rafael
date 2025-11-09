@@ -257,6 +257,7 @@ function initAuth() {
             showAlert('PIN has been reset successfully. You may now login with your new PIN / Password.', 'success');
         }
     });
+
     // Logout with confirmation
     document.getElementById('btn-logout').addEventListener('click', () => {
         const confirmLogout = confirm("Are you sure you want to logout?");
@@ -548,7 +549,7 @@ function loadAndRender() {
 
     // Render savings history
     renderHistory(txs);
-    updateWeeklySavingsChart();
+    updateMonthlySavingsChart();
 }
 
 function updateStatistics(transactions) {
@@ -1184,9 +1185,3 @@ function initApp() {
 
 // Start the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
-
-
-
-
-
-

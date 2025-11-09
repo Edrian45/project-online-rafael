@@ -49,6 +49,7 @@ function showAlert(message, type = 'info', duration = 5000) {
     alert.style.zIndex = '9999';
     alert.style.minWidth = '250px';
     alert.style.maxWidth = '90vw';
+    alert.style.textAlign = 'center';
 
     document.body.appendChild(alert);
 
@@ -592,15 +593,44 @@ function renderTransactions(transactions) {
         return;
     }
 
-    // Group transactions by date
+    // Get ALL transactions for savings calculation
+    const allTransactions = getTx();
+
+    // Group ALL transactions by date for savings calculation
+    const allByDate = {};
+    allTransactions.forEach(tx => {
+        if (!allByDate[tx.date]) allByDate[tx.date] = { inflow: 0, outflow: 0 };
+        if (tx.type === 'inflow') allByDate[tx.date].inflow += tx.amount;
+        else allByDate[tx.date].outflow += tx.amount;
+    });
+
+    // Sort dates in ASCENDING order for savings calculation
+    const datesAsc = Object.keys(allByDate).sort((a, b) => {
+        const dateA = parseDate(a);
+        const dateB = parseDate(b);
+        return dateA - dateB;
+    });
+
+    // Calculate cumulative savings in ascending order
+    let runningBalance = 0;
+    const savingsByDate = {};
+    
+    datesAsc.forEach(date => {
+        const data = allByDate[date];
+        const dailySavings = data.inflow - data.outflow;
+        runningBalance += dailySavings;
+        savingsByDate[date] = runningBalance;
+    });
+
+    // Group filtered transactions by date for display
     const byDate = {};
     transactions.forEach(tx => {
         if (!byDate[tx.date]) byDate[tx.date] = [];
         byDate[tx.date].push(tx);
     });
 
-    // Sort dates in descending order
-    const dates = Object.keys(byDate).sort((a, b) => {
+    // Sort dates in descending order for display
+    const datesDesc = Object.keys(byDate).sort((a, b) => {
         const dateA = parseDate(a);
         const dateB = parseDate(b);
         return dateB - dateA;
@@ -608,13 +638,11 @@ function renderTransactions(transactions) {
 
     // Render transactions by date
     container.innerHTML = '';
-    dates.forEach(date => {
+    datesDesc.forEach(date => {
         // Sort newest first (LIFO)
         const dateTransactions = byDate[date].sort((a, b) => b.time.localeCompare(a.time));
 
-
-        // Calculate totals for ALL transactions of this date (not filtered by view type)
-        const allTransactions = getTx(); // Get all transactions
+        // Calculate totals for ALL transactions of this date for the current user
         const allDateTransactions = allTransactions.filter(tx => tx.date === date);
         const dateTotal = allDateTransactions.reduce((acc, tx) => {
             if (tx.type === 'inflow') acc.inflow += tx.amount;
@@ -622,8 +650,8 @@ function renderTransactions(transactions) {
             return acc;
         }, { inflow: 0, outflow: 0 });
 
-        // ALWAYS calculate savings as inflow - outflow
-        const savings = dateTotal.inflow - dateTotal.outflow;
+        // Use cumulative savings from savingsByDate
+        const savings = savingsByDate[date] || 0;
 
         const dateHeader = document.createElement('div');
         dateHeader.className = 'card';
@@ -677,7 +705,6 @@ function renderTransactions(transactions) {
     });
 }
 
-
 function renderDailySummary(transactions) {
     const container = document.getElementById('daily-summary');
 
@@ -710,25 +737,43 @@ function renderDailySummary(transactions) {
         else byDate[tx.date].outflow += tx.amount;
     });
 
-    // Sort dates in descending order
-    const dates = Object.keys(byDate).sort((a, b) => {
+    // Sort dates in ASCENDING order for savings calculation
+    const datesAsc = Object.keys(byDate).sort((a, b) => {
+        const dateA = parseDate(a);
+        const dateB = parseDate(b);
+        return dateA - dateB;
+    });
+
+    // Calculate cumulative savings in ascending order
+    let runningBalance = 0;
+    const savingsByDate = {};
+    
+    datesAsc.forEach(date => {
+        const data = byDate[date];
+        const dailySavings = data.inflow - data.outflow;
+        runningBalance += dailySavings;
+        savingsByDate[date] = runningBalance;
+    });
+
+    // Sort dates in DESCENDING order for display
+    const datesDesc = Object.keys(byDate).sort((a, b) => {
         const dateA = parseDate(a);
         const dateB = parseDate(b);
         return dateB - dateA;
     });
 
     // Create table
-    let html = '<table><thead><tr><th>Date</th><th>Inflow</th><th>Outflow</th><th>Savings</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>Date</th><th>Inflow</th><th>Outflow</th><th class="text-center">Savings</th></tr></thead><tbody>';
 
-    dates.forEach(date => {
+    datesDesc.forEach(date => {
         const data = byDate[date];
-        const savings = data.inflow - data.outflow;
+        const savings = savingsByDate[date];
         html += `
             <tr>
                 <td>${date}</td>
                 <td>${formatCurrency(data.inflow)}</td>
                 <td>${formatCurrency(data.outflow)}</td>
-                <td class="${savings >= 0 ? 'badge-success' : 'badge-danger'}" style="border-radius:4px;text-align:center">${formatCurrency(savings)}</td>
+                <td class="${savings >= 0 ? 'badge-success' : 'badge-danger'}" style="text-align:center">${formatCurrency(savings)}</td>
             </tr>
         `;
     });
@@ -753,8 +798,26 @@ function renderHistory(allTransactions) {
         else byDate[tx.date].outflow += tx.amount;
     });
 
-    // Sort dates in descending order
-    const dates = Object.keys(byDate).sort((a, b) => {
+    // Sort dates in ASCENDING order for savings calculation
+    const datesAsc = Object.keys(byDate).sort((a, b) => {
+        const dateA = parseDate(a);
+        const dateB = parseDate(b);
+        return dateA - dateB;
+    });
+
+    // Calculate cumulative savings in ascending order
+    let runningBalance = 0;
+    const savingsByDate = {};
+    
+    datesAsc.forEach(date => {
+        const data = byDate[date];
+        const dailySavings = data.inflow - data.outflow;
+        runningBalance += dailySavings;
+        savingsByDate[date] = runningBalance;
+    });
+
+    // Sort dates in DESCENDING order for display
+    const datesDesc = Object.keys(byDate).sort((a, b) => {
         const dateA = parseDate(a);
         const dateB = parseDate(b);
         return dateB - dateA;
@@ -763,16 +826,16 @@ function renderHistory(allTransactions) {
     // Create table
     let html = '<table><thead><tr><th>Date</th><th>Savings</th><th>Notes</th></tr></thead><tbody>';
 
-    dates.forEach(date => {
+    datesDesc.forEach(date => {
         const data = byDate[date];
-        const savings = data.inflow - data.outflow;
+        const savings = savingsByDate[date];
         html += `
-                    <tr>
-                        <td>${date}</td>
-                        <td class="${savings >= 0 ? 'badge-success' : 'badge-danger'}" style="border-radius:4px;text-align:center">${formatCurrency(savings)}</td>
-                        <td class="muted">In: ${formatCurrency(data.inflow)} | Out: ${formatCurrency(data.outflow)}</td>
-                    </tr>
-                `;
+            <tr>
+                <td>${date}</td>
+                <td class="${savings >= 0 ? 'badge-success' : 'badge-danger'}" style="text-align:center">${formatCurrency(savings)}</td>
+                <td class="muted">Inflow: ${formatCurrency(data.inflow)} | Outflow: ${formatCurrency(data.outflow)}</td>
+            </tr>
+        `;
     });
 
     html += '</tbody></table>';
@@ -1138,6 +1201,7 @@ function initApp() {
 
 // Start the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
+
 
 
 

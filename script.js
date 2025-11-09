@@ -1089,6 +1089,7 @@ function initWeeklySavingsChart() {
         }
     });
 }
+
 function getCurrentWeekRange() {
     const now = new Date();
     const day = now.getDay(); // 0 = Sunday
@@ -1103,7 +1104,6 @@ function getCurrentWeekRange() {
     return { monday, sunday };
 }
 
-
 function updateWeeklySavingsChart() {
     if (!weeklySavingsChart) return;
 
@@ -1115,26 +1115,50 @@ function getWeeklySavings() {
     const { monday, sunday } = getCurrentWeekRange();
     const tx = getTx(); // all transactions
 
-    // Initialize savings per day
-    let savingsMap = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
-
+    // Group transactions by date within the week
+    const byDate = {};
     tx.forEach(t => {
         const date = new Date(t.date);
         if (date >= monday && date <= sunday) {
-            const day = date.toLocaleString("en-US", { weekday: "short" });
-            savingsMap[day] += (t.type === "inflow" ? t.amount : -t.amount);
+            const dateString = t.date; // Use the original date string format
+            if (!byDate[dateString]) byDate[dateString] = { inflow: 0, outflow: 0 };
+            if (t.type === "inflow") byDate[dateString].inflow += t.amount;
+            else byDate[dateString].outflow += t.amount;
         }
     });
 
-    return [
-        savingsMap.Mon,
-        savingsMap.Tue,
-        savingsMap.Wed,
-        savingsMap.Thu,
-        savingsMap.Fri,
-        savingsMap.Sat,
-        savingsMap.Sun
-    ];
+    // Get all dates within the week range
+    const weekDates = [];
+    const currentDate = new Date(monday);
+    while (currentDate <= sunday) {
+        const dateString = formatDateForDisplay(currentDate);
+        weekDates.push(dateString);
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Calculate cumulative savings in date order
+    let cumulativeSavings = 0;
+    const dailySavings = Array(7).fill(0); // Initialize with zeros
+
+    weekDates.forEach((dateString, index) => {
+        if (byDate[dateString]) {
+            const data = byDate[dateString];
+            const dailyNet = data.inflow - data.outflow;
+            cumulativeSavings += dailyNet;
+        }
+        // Even if no transactions, keep the cumulative savings
+        dailySavings[index] = cumulativeSavings;
+    });
+
+    return dailySavings;
+}
+
+// Helper function to format date as YY/MM/DD (adjust based on your date format)
+function formatDateForDisplay(date) {
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${month}/${day}/${year}`; // Adjust this format to match your transaction date format
 }
 
 function exportData() {
@@ -1201,6 +1225,7 @@ function initApp() {
 
 // Start the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
+
 
 
 
